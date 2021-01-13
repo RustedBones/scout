@@ -10,7 +10,7 @@ Zeroconf  for scala (multicast DNS service discovery)
 
 | Version | Release date | cats version | Scala versions      |
 | ------- | ------------ | -----------  | ------------------- |
-| `0.1.0` | ???          | `2.2.0`      | `2.13.4`, `2.12.12` |
+| `0.1.0` | 2021-01-13   | `2.2.0`      | `2.13.4`, `2.12.12` |
 
 ## Getting scout
 

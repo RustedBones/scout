@@ -93,7 +93,7 @@ object Zeroconf {
   /**
     * Creates the [[java.net.Socket]] resource bound on 224.0.0.251:5353
     * listening for multicast messages
-    * @param interface Network interface. Will use the [[defaultNetworkInterface]] if not provided
+    * @param interface Network interface. Will use the default NetworkInterface if not provided
     * @return Multicast socket
     */
   private[scout] def localMulticastSocket[F[_]: Concurrent: ContextShift](
@@ -122,7 +122,7 @@ object Zeroconf {
   /**
     * Periodically scans for [[Instance]] of the desired [[Service]].
     * @param service [[Service]] definition
-    * @param interface Network interface. Will use the [[defaultNetworkInterface]] if not provided
+    * @param interface Network interface. Will use the default NetworkInterface if not provided
     * @param nextDelay Applied to the previous delay to compute the next, e.g. to implement exponential backoff
     * @return Stream of [[Instance]]
     */
@@ -186,7 +186,7 @@ object Zeroconf {
   /**
     * Register a [[Service]] [[Instance]] to be discovered with DNS-SD
     * @param instance [[Instance]] to be discovered
-    * @param interface Network interface. Will use the [[defaultNetworkInterface]] if not provided
+    * @param interface Network interface. Will use the default NetworkInterface if not provided
     * @param ttl Time to live of the DNS records
     */
   def register[F[_]: Concurrent: ContextShift: Timer](
