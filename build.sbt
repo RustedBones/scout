@@ -54,6 +54,7 @@ lazy val `scout` = (project in file("."))
   .settings(commonSettings: _*)
   .settings(
     libraryDependencies ++= Seq(
+      Dependencies.ScalaCollectionCompat,
       Dependencies.Taxonomy,
       Dependencies.Test.MUnit
     )

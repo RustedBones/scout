@@ -31,6 +31,7 @@ import java.net._
 import scala.concurrent.duration._
 import scala.collection.immutable
 import scala.jdk.CollectionConverters._
+import scala.collection.compat
 
 object Zeroconf {
 
@@ -53,14 +54,14 @@ object Zeroconf {
     * @param port Instance port for the service
     * @param target Instance host name
     * @param information Instance information
-    * @param address Instance ip address
+    * @param addresses Instance ip address
     */
   final case class Instance(
       service: Service,
       name: String,
       port: Int,
       target: String,
-      information: Map[String, String],
+      information: Map[String, String] = Map.empty,
       addresses: immutable.Seq[InetAddress] = List.empty
   )
 
@@ -78,10 +79,13 @@ object Zeroconf {
   private[scout] def defaultNetworkInterface[F[_]: Sync](): Resource[F, NetworkInterface] = {
     val interface = Sync[F].delay {
       (for {
-        itf  <- NetworkInterface.getNetworkInterfaces.asIterator.asScala if itf.isUp && !itf.isLoopback
+        itf  <- NetworkInterface.getNetworkInterfaces.asScala if itf.isUp && !itf.isLoopback
         addr <- itf.getInterfaceAddresses.asScala
         _    <- Option(addr.getBroadcast)
-      } yield itf).nextOption().getOrElse(throw new Exception("No network interface wit broadcast support was found"))
+      } yield itf)
+        .to(compat.immutable.LazyList)
+        .headOption
+        .getOrElse(throw new Exception("No network interface wit broadcast support was found"))
     }
     Resource.liftF(interface)
   }
