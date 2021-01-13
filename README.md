@@ -8,7 +8,9 @@ Zeroconf  for scala (multicast DNS service discovery)
 
 ## Versions
 
-Work in progress...
+| Version | Release date | cats version | Scala versions      |
+| ------- | ------------ | -----------  | ------------------- |
+| `0.1.0` | ???          | `2.2.0`      | `2.13.4`, `2.12.12` |
 
 ## Getting scout
 
@@ -17,8 +19,6 @@ libraryDependencies += "fr.davit" %% "scout" % "<version>"
 ```
 
 ## Zeroconf
-
-Scanning for services
 
 ```scala
 import cats.effect.{ContextShift, IO, Timer}
@@ -34,10 +34,28 @@ import scala.concurrent.duration._
 implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
 implicit val timer: Timer[IO]               = IO.timer(ExecutionContext.global)
 
-val services = Zeroconf
-  .scan[IO](Zeroconf.Service("googlecast", "tcp"))
+// service definition
+val service = Zeroconf.Service("ipp", "tcp")
+
+// Scanning for service instances
+val instances = Zeroconf
+  .scan[IO](service)
   .interruptAfter(50.seconds)
   .compile
   .toList
   .unsafeRunSync()
+
+
+// instance definition
+val instance = Zeroconf.Instance(
+  service = service,
+  name = "Ed’s Party Mix",
+  port = 1010,
+  target = "eds-musicbox", 
+  information = Map("codec" -> "ogg"),
+  addresses = Seq(InetAddress.getByName("169.254.150.84")) // use local address when left empty
+)
+
+// Registering an instance
+Zeroconf.register[IO](instance)
 ```
