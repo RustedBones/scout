@@ -96,7 +96,7 @@ class ZeroconfItSpec extends FunSuite {
     assert(result.head.additionals(0).name == "Scala FTW._googlecast._tcp.local")
     assert(result.head.additionals(0).data == DnsSRVRecordData(0, 0, 8009, "my-awesome-hostname"))
     assert(result.head.additionals(1).name == "Scala FTW._googlecast._tcp.local")
-    assert(result.head.additionals(1).data == DnsTXTRecordData(Seq("key=value")))
+    assert(result.head.additionals(1).data == DnsTXTRecordData(List("key=value")))
     assert(result.head.additionals(2).name == "my-awesome-hostname")
     assert(result.head.additionals(2).data == DnsARecordData(ipv4))
     assert(result.head.additionals(3).name == "my-awesome-hostname")
