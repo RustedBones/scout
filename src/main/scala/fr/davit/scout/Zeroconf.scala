@@ -35,8 +35,7 @@ import scala.collection.compat
 
 object Zeroconf {
 
-  /**
-    * Service to be discovered by DNS-SD
+  /** Service to be discovered by DNS-SD
     * @param application Application type (eg tftp, printer)
     * @param transport Transport type (eq tcp, udp)
     * @param domain Domain where the service can be found. Defaults to 'local'
@@ -47,8 +46,7 @@ object Zeroconf {
       domain: String = "local"
   )
 
-  /**
-    * Instance of a service
+  /** Instance of a service
     * @param service [[Service]] definition
     * @param name Instance name of the service, intended to be human readable
     * @param port Instance port for the service
@@ -71,8 +69,7 @@ object Zeroconf {
   private implicit val showService: Show[Service]   = Show(s => s"_${s.application}._${s.transport}.${s.domain}")
   private implicit val showInstance: Show[Instance] = Show(i => s"${i.name}.${i.service.show}")
 
-  /**
-    * Finds the 'default' network interface on the machine
+  /** Finds the 'default' network interface on the machine
     * Will pick the 1st interface that supports broadcast
     * @return Default network interface
     */
@@ -90,8 +87,7 @@ object Zeroconf {
     Resource.liftF(interface)
   }
 
-  /**
-    * Creates the [[java.net.Socket]] resource bound on 224.0.0.251:5353
+  /** Creates the [[java.net.Socket]] resource bound on 224.0.0.251:5353
     * listening for multicast messages
     * @param interface Network interface. Will use the default NetworkInterface if not provided
     * @return Multicast socket
@@ -119,8 +115,7 @@ object Zeroconf {
     } yield socket
   }
 
-  /**
-    * Periodically scans for [[Instance]] of the desired [[Service]].
+  /** Periodically scans for [[Instance]] of the desired [[Service]].
     * @param service [[Service]] definition
     * @param interface Network interface. Will use the default NetworkInterface if not provided
     * @param nextDelay Applied to the previous delay to compute the next, e.g. to implement exponential backoff
@@ -183,8 +178,7 @@ object Zeroconf {
     } yield service
   }
 
-  /**
-    * Register a [[Service]] [[Instance]] to be discovered with DNS-SD
+  /** Register a [[Service]] [[Instance]] to be discovered with DNS-SD
     * @param instance [[Instance]] to be discovered
     * @param interface Network interface. Will use the default NetworkInterface if not provided
     * @param ttl Time to live of the DNS records
@@ -272,11 +266,12 @@ object Zeroconf {
     for {
       socket <- Stream
         .resource(localMulticastSocket[F](interface))
-      addrs <- if (instance.addresses.isEmpty) {
-        Stream.eval(socket.localAddress).map(a => List(a.getAddress))
-      } else {
-        Stream(instance.addresses)
-      }
+      addrs <-
+        if (instance.addresses.isEmpty) {
+          Stream.eval(socket.localAddress).map(a => List(a.getAddress))
+        } else {
+          Stream(instance.addresses)
+        }
       response = serviceResponse(addrs)
       _ <- Dns
         .listen(socket)

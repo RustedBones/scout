@@ -80,7 +80,9 @@ class ZeroconfItSpec extends FunSuite {
 
     val result = Stream
       .resource(Zeroconf.localMulticastSocket[IO]())
-      .flatMap(s => Stream.eval(Dns.resolve(s, packet)).drain ++ Dns.listen(s)) // on multicast, resolve will receive its owns message
+      .flatMap(s =>
+        Stream.eval(Dns.resolve(s, packet)).drain ++ Dns.listen(s)
+      ) // on multicast, resolve will receive its owns message
       .concurrently(Zeroconf.register[IO](googleCastInstance))
       .map(_.message)
       .head
