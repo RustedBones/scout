@@ -183,7 +183,7 @@ object Zeroconf {
     * @param interface Network interface. Will use the default NetworkInterface if not provided
     * @param ttl Time to live of the DNS records
     */
-  def register[F[_]: Concurrent: ContextShift: Timer](
+  def register[F[_]: Concurrent: ContextShift](
       instance: Instance,
       interface: Option[NetworkInterface] = None,
       ttl: FiniteDuration = 2.minutes
