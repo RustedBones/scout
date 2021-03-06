@@ -4,7 +4,7 @@ object Dependencies {
 
   object Versions {
     val Decline               = "1.3.0"
-    val MUnit                 = "0.7.20"
+    val MUnit                 = "0.7.22"
     val ScalaCollectionCompat = "2.4.2"
     val Taxonomy              = "0.3.0"
   }
