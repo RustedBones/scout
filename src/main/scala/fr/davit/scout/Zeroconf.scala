@@ -236,6 +236,7 @@ object Zeroconf {
         .map {
           case ipv4: Inet4Address => DnsARecordData(ipv4)
           case ipv6: Inet6Address => DnsAAAARecordData(ipv6)
+          case addr: InetAddress  => throw new Exception(s"Unsupported InetAddress $addr")
         }
         .map { data =>
           DnsResourceRecord(
