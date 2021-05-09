@@ -32,7 +32,6 @@ import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress, Net
 import scala.concurrent.duration._
 import scala.collection.immutable
 import scala.jdk.CollectionConverters._
-// import scala.collection.compat
 
 object Zeroconf {
 
