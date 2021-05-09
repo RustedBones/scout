@@ -24,9 +24,9 @@ import fr.davit.taxonomy.scodec.DnsCodec
 import fs2._
 import munit.CatsEffectSuite
 import scodec.Codec
-import scala.concurrent.duration._
 
-import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress, NetworkInterface}
+import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress}
+import scala.concurrent.duration._
 
 class ZeroconfItSpec extends CatsEffectSuite {
 
@@ -46,7 +46,8 @@ class ZeroconfItSpec extends CatsEffectSuite {
     List(ipv4, ipv6)
   )
 
-  val testInterface = NetworkInterface.getByName("wlp0s20f3")
+  // pick a random interface for testing
+  val testInterface = Zeroconf.networkInterfaces[IO]().head.compile.toList.unsafeRunSync().head
 
   test("discover services") {
     Stream
