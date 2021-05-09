@@ -56,6 +56,6 @@ lazy val `scout` = (project in file("."))
     libraryDependencies ++= Seq(
       Dependencies.ScalaCollectionCompat,
       Dependencies.Taxonomy,
-      Dependencies.Test.MUnit
+      Dependencies.Test.MUnitCE3
     )
   )

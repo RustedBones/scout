@@ -19,19 +19,20 @@ package fr.davit.scout
 import cats.Show
 import cats.effect._
 import cats.implicits._
+import com.comcast.ip4s.{Dns => _, _}
 import fr.davit.taxonomy.fs2.Dns
 import fr.davit.taxonomy.model._
 import fr.davit.taxonomy.model.record._
 import fr.davit.taxonomy.scodec.DnsCodec
 import fs2._
-import fs2.io.udp.{Socket, SocketGroup}
+import fs2.io.net.{DatagramSocket, Network, SocketOption}
 import scodec.Codec
 
-import java.net._
+import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress, NetworkInterface, StandardProtocolFamily}
 import scala.concurrent.duration._
 import scala.collection.immutable
 import scala.jdk.CollectionConverters._
-import scala.collection.compat
+// import scala.collection.compat
 
 object Zeroconf {
 
@@ -63,72 +64,65 @@ object Zeroconf {
       addresses: immutable.Seq[InetAddress] = List.empty
   )
 
-  private val LocalMulticastAddress = new InetSocketAddress(InetAddress.getByName("224.0.0.251"), 5353)
+  private val LocalDnsMulticast     = mipv4"224.0.0.251"
+  private val LocalDnsMulticastPort = port"5353"
+
+  private val LocalDnsMulticastAddress = new InetSocketAddress(
+    LocalDnsMulticast.address.toInetAddress,
+    LocalDnsMulticastPort.value
+  )
 
   private implicit val codec: Codec[DnsMessage]     = DnsCodec.dnsMessage
   private implicit val showService: Show[Service]   = Show(s => s"_${s.application}._${s.transport}.${s.domain}")
   private implicit val showInstance: Show[Instance] = Show(i => s"${i.name}.${i.service.show}")
 
-  /** Finds the 'default' network interface on the machine
-    * Will pick the 1st interface that supports broadcast
-    * @return Default network interface
+  /** Find the IPv4 multicast network interfaces on the machine
+    * @return List of network interfaces
     */
-  private[scout] def defaultNetworkInterface[F[_]: Sync](): Resource[F, NetworkInterface] = {
-    val interface = Sync[F].delay {
-      (for {
-        itf  <- NetworkInterface.getNetworkInterfaces.asScala if itf.isUp && !itf.isLoopback
-        addr <- itf.getInterfaceAddresses.asScala
-        _    <- Option(addr.getBroadcast)
-      } yield itf)
-        .to(compat.immutable.LazyList)
-        .headOption
-        .getOrElse(throw new Exception("No network interface wit broadcast support was found"))
-    }
-    Resource.liftF(interface)
-  }
+  private[scout] def networkInterfaces[F[_]: Sync](): Stream[F, NetworkInterface] =
+    Stream
+      .evalSeq(Sync[F].delay(NetworkInterface.getNetworkInterfaces.asScala.toList))
+      .filter(_.isUp)
+      .filter(_.supportsMulticast)
+      .filter(_.getInterfaceAddresses.asScala.exists(_.getBroadcast != null))
+      .filterNot(_.isLoopback)
+      .filterNot(_.isPointToPoint)
 
   /** Creates the [[java.net.Socket]] resource bound on 224.0.0.251:5353
     * listening for multicast messages
     * @param interface Network interface. Will use the default NetworkInterface if not provided
     * @return Multicast socket
     */
-  private[scout] def localMulticastSocket[F[_]: Concurrent: ContextShift](
-      interface: Option[NetworkInterface] = None
-  ): Resource[F, Socket[F]] = {
-    for {
-      itf <- interface match {
-        case Some(i) => Resource.pure[F, NetworkInterface](i)
-        case None    => defaultNetworkInterface[F]()
-      }
-      blocker     <- Blocker[F]
-      socketGroup <- SocketGroup[F](blocker)
-      socket <- socketGroup
-        .open[F](
-          new InetSocketAddress(LocalMulticastAddress.getPort),
-          protocolFamily = Some(StandardProtocolFamily.INET),
-          reuseAddress = true,
-          allowBroadcast = true,
-          multicastInterface = Some(itf),
-          multicastTTL = Some(255)
-        )
-        .evalTap(_.join(LocalMulticastAddress.getAddress, itf).void)
-    } yield socket
-  }
+  private[scout] def localMulticastSocket[F[_]: Sync: Network](
+      interface: NetworkInterface
+  ): Resource[F, DatagramSocket[F]] =
+    Network[F]
+      .openDatagramSocket(
+        port = Some(LocalDnsMulticastPort),
+        options = List(
+          SocketOption.reuseAddress(true),
+          SocketOption.broadcast(true),
+          SocketOption.multicastInterface(interface),
+          SocketOption.multicastTtl(255)
+        ),
+        protocolFamily = Some(StandardProtocolFamily.INET)
+      )
+      .evalTap(_.join(MulticastJoin.asm(LocalDnsMulticast), interface).void)
 
   /** Periodically scans for [[Instance]] of the desired [[Service]].
     * @param service [[Service]] definition
-    * @param interface Network interface. Will use the default NetworkInterface if not provided
+    * @param interface Network interface. Will scan all available network interfaces otherwise
     * @param nextDelay Applied to the previous delay to compute the next, e.g. to implement exponential backoff
     * @return Stream of [[Instance]]
     */
-  def scan[F[_]: Concurrent: ContextShift: Timer](
+  def scan[F[_]: Async: Network](
       service: Service,
       interface: Option[NetworkInterface] = None,
       nextDelay: FiniteDuration => FiniteDuration = t => (t * 3).min(1.hour)
   ): Stream[F, Instance] = {
     val question = DnsQuestion(service.show, DnsRecordType.PTR, unicastResponse = false, DnsRecordClass.Internet)
     val message  = DnsMessage.query(id = 0, isRecursionDesired = false, questions = Seq(question))
-    val packet   = DnsPacket(LocalMulticastAddress, message)
+    val packet   = DnsPacket(LocalDnsMulticastAddress, message)
 
     def serviceInstance(dnsMessage: DnsMessage): Option[Instance] =
       for {
@@ -158,32 +152,35 @@ object Zeroconf {
         Instance(service, ptr, port, target, information, addresses)
       }
 
-    for {
-      socket <- Stream
-        .resource(localMulticastSocket[F](interface))
-      exponentialDelay = Stream.emit(()) ++ Stream
-        .iterate(1.second)(nextDelay)
-        .flatMap(t => Stream.sleep_(t))
-      requester = Stream
-        .emit(packet)
-        .repeat
-        .zipLeft(exponentialDelay)
-        .through(Dns.stream(socket))
-      service <- Dns
-        .listen(socket)
-        .concurrently(requester)
-        .map(_.message)
-        .map(serviceInstance)
-        .flattenOption
-    } yield service
+    val exponentialDelay = Stream.emit(()) ++ Stream
+      .iterate(1.second)(nextDelay)
+      .flatMap(t => Stream.sleep_(t))
+
+    interface
+      .fold(networkInterfaces())(Stream.emit)
+      .flatMap(itf => Stream.resource(localMulticastSocket[F](itf)))
+      .map { socket =>
+        val requester = Stream
+          .emit(packet)
+          .repeat
+          .zipLeft(exponentialDelay)
+          .through(Dns.stream(socket))
+        Dns
+          .listen(socket)
+          .concurrently(requester)
+          .map(_.message)
+          .map(serviceInstance)
+          .flattenOption
+      }
+      .parJoinUnbounded
   }
 
   /** Register a [[Service]] [[Instance]] to be discovered with DNS-SD
     * @param instance [[Instance]] to be discovered
-    * @param interface Network interface. Will use the default NetworkInterface if not provided
+    * @param interface Network interface. Will register to all available network interface otherwise
     * @param ttl Time to live of the DNS records
     */
-  def register[F[_]: Concurrent: ContextShift](
+  def register[F[_]: Async: Network](
       instance: Instance,
       interface: Option[NetworkInterface] = None,
       ttl: FiniteDuration = 2.minutes
@@ -261,26 +258,32 @@ object Zeroconf {
         responseCode = DnsResponseCode.Success
       )
       val message = DnsMessage(header, List.empty, answers, List.empty, additionals)
-      DnsPacket(LocalMulticastAddress, message)
+      DnsPacket(LocalDnsMulticastAddress, message)
     }
 
-    for {
-      socket <- Stream
-        .resource(localMulticastSocket[F](interface))
-      addrs <-
-        if (instance.addresses.isEmpty) {
-          Stream.eval(socket.localAddress).map(a => List(a.getAddress))
+    interface
+      .fold(networkInterfaces())(Stream.emit)
+      .flatMap(itf => Stream.resource(localMulticastSocket(itf)))
+      .evalMap { socket =>
+        val response = if (instance.addresses.isEmpty) {
+          socket.localAddress
+            .map(_.toInetSocketAddress.getAddress)
+            .map(addr => serviceResponse(Seq(addr)))
         } else {
-          Stream(instance.addresses)
+          Sync[F].pure(serviceResponse(instance.addresses))
         }
-      response = serviceResponse(addrs)
-      _ <- Dns
-        .listen(socket)
-        .map(_.message)
-        .filter(isServiceRequest)
-        .filterNot(knowsInstance)
-        .map(_ => response)
-        .through(Dns.stream(socket))
-    } yield ()
+        response.map(resp => (socket, resp))
+      }
+      .map { case (socket, response) =>
+        Dns
+          .listen(socket)
+          .map(_.message)
+          .filter(isServiceRequest)
+          .filterNot(knowsInstance)
+          .map(_ => response)
+          .through(Dns.stream(socket))
+          .unitary
+      }
+      .parJoinUnbounded
   }
 }
