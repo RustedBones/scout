@@ -6,7 +6,7 @@ object Dependencies {
     val Decline               = "1.3.0"
     val MUnit                 = "0.7.23"
     val ScalaCollectionCompat = "2.4.3"
-    val Taxonomy              = "0.3.0"
+    val Taxonomy              = "1.0.0"
   }
 
   val Decline               = "com.monovore"           %% "decline-effect"          % Versions.Decline
