@@ -4,7 +4,7 @@ object Dependencies {
 
   object Versions {
     val MUnitCE3              = "1.0.2"
-    val ScalaCollectionCompat = "2.4.2"
+    val ScalaCollectionCompat = "2.4.4"
     val Taxonomy              = "1.0.0"
   }
 
