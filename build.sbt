@@ -23,7 +23,7 @@ lazy val commonSettings = Defaults.itSettings ++
   Seq(
     organization := "fr.davit",
     organizationName := "Michel Davit",
-    version := "1.0.0-M1",
+    version := "1.0.0-SNAPSHOT",
     crossScalaVersions := (ThisBuild / crossScalaVersions).value,
     scalaVersion := crossScalaVersions.value.head,
     scalacOptions ~= filterScalacOptions,
