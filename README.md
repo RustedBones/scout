@@ -22,41 +22,40 @@ libraryDependencies += "fr.davit" %% "scout" % "<version>"
 ## Zeroconf
 
 ```scala
-import cats.effect.{ContextShift, IO, Timer}
+import cats.effect.{IO, IOApp}
 import fr.davit.scout.Zeroconf
 import fr.davit.taxonomy.model.DnsMessage
 import fr.davit.taxonomy.scodec.DnsCodec
 import scodec.Codec
 
 import java.net.InetAddress
-import scala.concurrent.ExecutionContext
 import scala.concurrent.duration._
 
-implicit val contextShift: ContextShift[IO] = IO.contextShift(ExecutionContext.global)
-implicit val timer: Timer[IO]               = IO.timer(ExecutionContext.global)
+object App extends IOApp.Simple {
 
-// service definition
-val service = Zeroconf.Service("ipp", "tcp")
+  // service definition
+  val service = Zeroconf.Service("ipp", "tcp")
 
-// Scanning for service instances
-val instances = Zeroconf
-  .scan[IO](service)
-  .interruptAfter(50.seconds)
-  .compile
-  .toList
-  .unsafeRunSync()
+  // Scanning for service instances
+  val instances = Zeroconf
+    .scan[IO](service)
+    .interruptAfter(50.seconds)
+    .compile
+    .toList
+    .unsafeRunSync()
 
 
-// instance definition
-val instance = Zeroconf.Instance(
-  service = service,
-  name = "Ed’s Party Mix",
-  port = 1010,
-  target = "eds-musicbox", 
-  information = Map("codec" -> "ogg"),
-  addresses = Seq(InetAddress.getByName("169.254.150.84")) // use local address when left empty
-)
+  // instance definition
+  val instance = Zeroconf.Instance(
+    service = service,
+    name = "Ed’s Party Mix",
+    port = 1010,
+    target = "eds-musicbox",
+    information = Map("codec" -> "ogg"),
+    addresses = Seq(InetAddress.getByName("169.254.150.84")) // use local address when left empty
+  )
 
-// Registering an instance
-Zeroconf.register[IO](instance)
+  // Registering an instance
+  Zeroconf.register[IO](instance)
+}
 ```
