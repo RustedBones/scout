@@ -28,7 +28,7 @@ import scodec.Codec
 import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress}
 import scala.concurrent.duration._
 
-class ZeroconfItSpec extends CatsEffectSuite {
+class ZeroconfItSpec extends CatsEffectSuite:
 
   implicit val coder: Codec[DnsMessage] = DnsCodec.dnsMessage
 
@@ -98,4 +98,4 @@ class ZeroconfItSpec extends CatsEffectSuite {
         assert(result.head.additionals(3).data == DnsAAAARecordData(ipv6))
       }
   }
-}
+end ZeroconfItSpec
