@@ -2,18 +2,11 @@
 val username = "RustedBones"
 val repo     = "scout"
 
-lazy val filterScalacOptions = { options: Seq[String] =>
-  options.filterNot { o =>
-    // get rid of value discard
-    o == "-Ywarn-value-discard" || o == "-Wvalue-discard"
-  }
-}
-
 // for sbt-github-actions
-ThisBuild / crossScalaVersions := Seq("2.13.6", "2.12.14")
+ThisBuild / scalaVersion := "3.1.1"
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(name = Some("Check project"), commands = List("scalafmtCheckAll", "headerCheckAll")),
-  WorkflowStep.Sbt(name = Some("Build project"), commands = List("test", "it:test"))
+  WorkflowStep.Sbt(name = Some("Build project"), commands = List("test", "IntegrationTest/test"))
 )
 ThisBuild / githubWorkflowTargetBranches := Seq("master")
 ThisBuild / githubWorkflowPublishTargetBranches := Seq.empty
@@ -23,10 +16,7 @@ lazy val commonSettings = Defaults.itSettings ++
   Seq(
     organization := "fr.davit",
     organizationName := "Michel Davit",
-    version := "1.0.0-SNAPSHOT",
-    crossScalaVersions := (ThisBuild / crossScalaVersions).value,
-    scalaVersion := crossScalaVersions.value.head,
-    scalacOptions ~= filterScalacOptions,
+    scalaVersion := (ThisBuild / scalaVersion).value,
     homepage := Some(url(s"https://github.com/$username/$repo")),
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
     startYear := Some(2020),
@@ -42,6 +32,7 @@ lazy val commonSettings = Defaults.itSettings ++
     publishMavenStyle := true,
     Test / publishArtifact := false,
     publishTo := Some(if (isSnapshot.value) Opts.resolver.sonatypeSnapshots else Opts.resolver.sonatypeStaging),
+    releasePublishArtifactsAction := PgpKeys.publishSigned.value,
     credentials ++= (for {
       username <- sys.env.get("SONATYPE_USERNAME")
       password <- sys.env.get("SONATYPE_PASSWORD")
@@ -54,7 +45,6 @@ lazy val `scout` = (project in file("."))
   .settings(commonSettings: _*)
   .settings(
     libraryDependencies ++= Seq(
-      Dependencies.ScalaCollectionCompat,
       Dependencies.Taxonomy,
       Dependencies.Test.MUnitCE3
     )

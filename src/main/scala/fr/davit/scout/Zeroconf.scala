@@ -33,12 +33,15 @@ import scala.concurrent.duration._
 import scala.collection.immutable
 import scala.jdk.CollectionConverters._
 
-object Zeroconf {
+object Zeroconf:
 
   /** Service to be discovered by DNS-SD
-    * @param application Application type (eg tftp, printer)
-    * @param transport Transport type (eq tcp, udp)
-    * @param domain Domain where the service can be found. Defaults to 'local'
+    * @param application
+    *   Application type (eg tftp, printer)
+    * @param transport
+    *   Transport type (eq tcp, udp)
+    * @param domain
+    *   Domain where the service can be found. Defaults to 'local'
     */
   final case class Service(
       application: String,
@@ -47,12 +50,18 @@ object Zeroconf {
   )
 
   /** Instance of a service
-    * @param service [[Service]] definition
-    * @param name Instance name of the service, intended to be human readable
-    * @param port Instance port for the service
-    * @param target Instance host name
-    * @param information Instance information
-    * @param addresses Instance ip address
+    * @param service
+    *   [[Service]] definition
+    * @param name
+    *   Instance name of the service, intended to be human readable
+    * @param port
+    *   Instance port for the service
+    * @param target
+    *   Instance host name
+    * @param information
+    *   Instance information
+    * @param addresses
+    *   Instance ip address
     */
   final case class Instance(
       service: Service,
@@ -76,7 +85,8 @@ object Zeroconf {
   private implicit val showInstance: Show[Instance] = Show(i => s"${i.name}.${i.service.show}")
 
   /** Find the IPv4 multicast network interfaces on the machine
-    * @return List of network interfaces
+    * @return
+    *   List of network interfaces
     */
   private[scout] def networkInterfaces[F[_]: Sync](): Stream[F, NetworkInterface] =
     Stream
@@ -87,10 +97,11 @@ object Zeroconf {
       .filterNot(_.isLoopback)
       .filterNot(_.isPointToPoint)
 
-  /** Creates the [[java.net.Socket]] resource bound on 224.0.0.251:5353
-    * listening for multicast messages
-    * @param interface Network interface. Will use the default NetworkInterface if not provided
-    * @return Multicast socket
+  /** Creates the [[java.net.Socket]] resource bound on 224.0.0.251:5353 listening for multicast messages
+    * @param interface
+    *   Network interface. Will use the default NetworkInterface if not provided
+    * @return
+    *   Multicast socket
     */
   private[scout] def localMulticastSocket[F[_]: Sync: Network](
       interface: NetworkInterface
@@ -109,16 +120,20 @@ object Zeroconf {
       .evalTap(_.join(MulticastJoin.asm(LocalDnsMulticast), interface).void)
 
   /** Periodically scans for [[Instance]] of the desired [[Service]].
-    * @param service [[Service]] definition
-    * @param interface Network interface. Will scan all available network interfaces otherwise
-    * @param nextDelay Applied to the previous delay to compute the next, e.g. to implement exponential backoff
-    * @return Stream of [[Instance]]
+    * @param service
+    *   [[Service]] definition
+    * @param interface
+    *   Network interface. Will scan all available network interfaces otherwise
+    * @param nextDelay
+    *   Applied to the previous delay to compute the next, e.g. to implement exponential backoff
+    * @return
+    *   Stream of [[Instance]]
     */
   def scan[F[_]: Async: Network](
       service: Service,
       interface: Option[NetworkInterface] = None,
       nextDelay: FiniteDuration => FiniteDuration = t => (t * 3).min(1.hour)
-  ): Stream[F, Instance] = {
+  ): Stream[F, Instance] =
     val question = DnsQuestion(service.show, DnsRecordType.PTR, unicastResponse = false, DnsRecordClass.Internet)
     val message  = DnsMessage.query(id = 0, isRecursionDesired = false, questions = Seq(question))
     val packet   = DnsPacket(LocalDnsMulticastAddress, message)
@@ -150,6 +165,7 @@ object Zeroconf {
         }
         Instance(service, ptr, port, target, information, addresses)
       }
+    end serviceInstance
 
     val exponentialDelay = Stream.emit(()) ++ Stream
       .iterate(1.second)(nextDelay)
@@ -172,20 +188,23 @@ object Zeroconf {
           .flattenOption
       }
       .parJoinUnbounded
-  }
+  end scan
 
   /** Register a [[Service]] [[Instance]] to be discovered with DNS-SD
-    * @param instance [[Instance]] to be discovered
-    * @param interface Network interface. Will register to all available network interface otherwise
-    * @param ttl Time to live of the DNS records
+    * @param instance
+    *   [[Instance]] to be discovered
+    * @param interface
+    *   Network interface. Will register to all available network interface otherwise
+    * @param ttl
+    *   Time to live of the DNS records
     */
   def register[F[_]: Async: Network](
       instance: Instance,
       interface: Option[NetworkInterface] = None,
       ttl: FiniteDuration = 2.minutes
-  ): Stream[F, Unit] = {
+  ): Stream[F, Unit] =
 
-    def isServiceRequest(message: DnsMessage): Boolean = {
+    def isServiceRequest(message: DnsMessage): Boolean =
       val isQuery = message.header.`type` == DnsType.Query
       val isServiceQuestion = message.questions.exists { q =>
         q.name == instance.service.show &&
@@ -193,17 +212,15 @@ object Zeroconf {
         q.`class` == DnsRecordClass.Internet
       }
       isQuery && isServiceQuestion
-    }
 
-    def knowsInstance(message: DnsMessage): Boolean = {
-      message.answers.exists {
+    def knowsInstance(message: DnsMessage): Boolean = message.answers
+      .exists {
         case DnsResourceRecord(name, _, _, _, DnsPTRRecordData(ptr)) =>
           name == instance.service.show && ptr == instance.show
         case _ => false
       }
-    }
 
-    def serviceResponse(addresses: Seq[InetAddress]): DnsPacket = {
+    def serviceResponse(addresses: Seq[InetAddress]): DnsPacket =
       val ptr = DnsResourceRecord(
         name = instance.service.show,
         cacheFlush = false,
@@ -258,7 +275,7 @@ object Zeroconf {
       )
       val message = DnsMessage(header, List.empty, answers, List.empty, additionals)
       DnsPacket(LocalDnsMulticastAddress, message)
-    }
+    end serviceResponse
 
     interface
       .fold(networkInterfaces())(Stream.emit)
@@ -284,5 +301,6 @@ object Zeroconf {
           .unitary
       }
       .parJoinUnbounded
-  }
-}
+  end register
+
+end Zeroconf
