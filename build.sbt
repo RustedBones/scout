@@ -3,7 +3,7 @@ val username = "RustedBones"
 val repo     = "scout"
 
 // for sbt-github-actions
-ThisBuild / scalaVersion := "3.1.1"
+ThisBuild / scalaVersion := "3.1.3"
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(name = Some("Check project"), commands = List("scalafmtCheckAll", "headerCheckAll")),
   WorkflowStep.Sbt(name = Some("Build project"), commands = List("test", "IntegrationTest/test"))
