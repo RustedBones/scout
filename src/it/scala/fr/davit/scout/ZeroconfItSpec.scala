@@ -18,19 +18,19 @@ package fr.davit.scout
 
 import cats.effect.IO
 import fr.davit.taxonomy.fs2.Dns
-import fr.davit.taxonomy.model._
-import fr.davit.taxonomy.model.record._
+import fr.davit.taxonomy.model.*
+import fr.davit.taxonomy.model.record.*
 import fr.davit.taxonomy.scodec.DnsCodec
-import fs2._
+import fs2.*
 import munit.CatsEffectSuite
 import scodec.Codec
 
 import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress}
-import scala.concurrent.duration._
+import scala.concurrent.duration.*
 
 class ZeroconfItSpec extends CatsEffectSuite:
 
-  implicit val coder: Codec[DnsMessage] = DnsCodec.dnsMessage
+  given Codec[DnsMessage] = DnsCodec.dnsMessage
 
   val googleCastService = Zeroconf.Service("awesomeservice", "tcp")
 

@@ -29,7 +29,7 @@ import fr.davit.taxonomy.scodec.DnsCodec
 import scodec.Codec
 
 import java.net.InetAddress
-import scala.concurrent.duration._
+import scala.concurrent.duration*
 
 object App extends IOApp.Simple {
 
