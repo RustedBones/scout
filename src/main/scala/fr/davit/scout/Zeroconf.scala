@@ -17,21 +17,21 @@
 package fr.davit.scout
 
 import cats.Show
-import cats.effect._
-import cats.implicits._
+import cats.effect.*
+import cats.implicits.*
 import com.comcast.ip4s.{Dns => _, _}
 import fr.davit.taxonomy.fs2.Dns
-import fr.davit.taxonomy.model._
-import fr.davit.taxonomy.model.record._
+import fr.davit.taxonomy.model.*
+import fr.davit.taxonomy.model.record.*
 import fr.davit.taxonomy.scodec.DnsCodec
-import fs2._
+import fs2.*
 import fs2.io.net.{DatagramSocket, Network, SocketOption}
 import scodec.Codec
 
-import java.net.{Inet4Address, Inet6Address, InetAddress, InetSocketAddress, NetworkInterface, StandardProtocolFamily}
-import scala.concurrent.duration._
+import java.net.*
+import scala.concurrent.duration.*
 import scala.collection.immutable
-import scala.jdk.CollectionConverters._
+import scala.jdk.CollectionConverters.*
 
 object Zeroconf:
 
@@ -80,9 +80,9 @@ object Zeroconf:
     LocalDnsMulticastPort.value
   )
 
-  private implicit val codec: Codec[DnsMessage]     = DnsCodec.dnsMessage
-  private implicit val showService: Show[Service]   = Show(s => s"_${s.application}._${s.transport}.${s.domain}")
-  private implicit val showInstance: Show[Instance] = Show(i => s"${i.name}.${i.service.show}")
+  private given Codec[DnsMessage] = DnsCodec.dnsMessage
+  private given Show[Service]     = Show(s => s"_${s.application}._${s.transport}.${s.domain}")
+  private given Show[Instance]    = Show(i => s"${i.name}.${i.service.show}")
 
   /** Find the IPv4 multicast network interfaces on the machine
     * @return
