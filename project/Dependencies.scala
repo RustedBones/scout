@@ -4,7 +4,7 @@ object Dependencies {
 
   object Versions {
     val MUnitCE3 = "1.0.7"
-    val Taxonomy = "1.1.0"
+    val Taxonomy = "1.2.0"
   }
 
   val Taxonomy = "fr.davit" %% "taxonomy-fs2" % Versions.Taxonomy

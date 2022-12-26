@@ -1,9 +1,11 @@
+import scala.annotation.nowarn
+
 // General info
 val username = "RustedBones"
 val repo     = "scout"
 
 // for sbt-github-actions
-ThisBuild / scalaVersion := "3.1.1"
+ThisBuild / scalaVersion := "3.2.1"
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(name = Some("Check project"), commands = List("scalafmtCheckAll", "headerCheckAll")),
   WorkflowStep.Sbt(name = Some("Build project"), commands = List("test", "IntegrationTest/test"))
@@ -31,7 +33,14 @@ lazy val commonSettings = Defaults.itSettings ++
     ),
     publishMavenStyle := true,
     Test / publishArtifact := false,
-    publishTo := Some(if (isSnapshot.value) Opts.resolver.sonatypeSnapshots else Opts.resolver.sonatypeStaging),
+    publishTo := {
+      val resolver = if (isSnapshot.value) {
+        Opts.resolver.sonatypeSnapshots: @nowarn("cat=deprecation")
+      } else {
+        Opts.resolver.sonatypeStaging
+      }
+      Some(resolver)
+    },
     releasePublishArtifactsAction := PgpKeys.publishSigned.value,
     credentials ++= (for {
       username <- sys.env.get("SONATYPE_USERNAME")
