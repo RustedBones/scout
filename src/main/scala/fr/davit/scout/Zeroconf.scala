@@ -19,7 +19,7 @@ package fr.davit.scout
 import cats.Show
 import cats.effect.*
 import cats.implicits.*
-import com.comcast.ip4s.{Dns => _, _}
+import com.comcast.ip4s.{Dns as _, *}
 import fr.davit.taxonomy.fs2.Dns
 import fr.davit.taxonomy.model.*
 import fr.davit.taxonomy.model.record.*
@@ -139,7 +139,7 @@ object Zeroconf:
     val packet   = DnsPacket(LocalDnsMulticastAddress, message)
 
     def serviceInstance(dnsMessage: DnsMessage): Option[Instance] =
-      for {
+      for
         ptr <- dnsMessage.answers.collectFirst {
           case DnsResourceRecord(question.name, _, question.`class`, _, DnsPTRRecordData(ptr)) => ptr
         }
@@ -149,7 +149,7 @@ object Zeroconf:
         txt <- dnsMessage.additionals.collectFirst {
           case DnsResourceRecord(`ptr`, _, question.`class`, _, DnsTXTRecordData(txt)) => txt
         }
-      } yield {
+      yield
         val information = txt
           .map(_.split('='))
           .collect {
@@ -164,7 +164,6 @@ object Zeroconf:
           case DnsResourceRecord(`target`, _, question.`class`, _, DnsAAAARecordData(ipv6)) => ipv6
         }
         Instance(service, ptr, port, target, information, addresses)
-      }
     end serviceInstance
 
     val exponentialDelay = Stream.emit(()) ++ Stream
@@ -242,7 +241,7 @@ object Zeroconf:
         cacheFlush = true,
         `class` = DnsRecordClass.Internet,
         ttl = ttl,
-        data = DnsTXTRecordData(instance.information.map { case (k, v) => if (v.isEmpty) k else s"$k=$v" }.toList)
+        data = DnsTXTRecordData(instance.information.map { case (k, v) => if v.isEmpty then k else s"$k=$v" }.toList)
       )
 
       val as = addresses
@@ -281,13 +280,12 @@ object Zeroconf:
       .fold(networkInterfaces())(Stream.emit)
       .flatMap(itf => Stream.resource(localMulticastSocket(itf)))
       .evalMap { socket =>
-        val response = if (instance.addresses.isEmpty) {
-          socket.localAddress
-            .map(_.toInetSocketAddress.getAddress)
-            .map(addr => serviceResponse(Seq(addr)))
-        } else {
-          Sync[F].pure(serviceResponse(instance.addresses))
-        }
+        val response =
+          if instance.addresses.isEmpty then
+            socket.localAddress
+              .map(_.toInetSocketAddress.getAddress)
+              .map(addr => serviceResponse(Seq(addr)))
+          else Sync[F].pure(serviceResponse(instance.addresses))
         response.map(resp => (socket, resp))
       }
       .map { case (socket, response) =>
