@@ -32,6 +32,7 @@ import java.net.*
 import scala.concurrent.duration.*
 import scala.collection.immutable
 import scala.jdk.CollectionConverters.*
+import scala.jdk.StreamConverters.*
 
 object Zeroconf:
 
@@ -61,7 +62,7 @@ object Zeroconf:
     * @param information
     *   Instance information
     * @param addresses
-    *   Instance ip address
+    *   Instance ip addresses. When left empty, local address will be used
     */
   final case class Instance(
       service: Service,
@@ -99,7 +100,7 @@ object Zeroconf:
 
   /** Creates the [[java.net.Socket]] resource bound on 224.0.0.251:5353 listening for multicast messages
     * @param interface
-    *   Network interface. Will use the default NetworkInterface if not provided
+    *   Network interface
     * @return
     *   Multicast socket
     */
@@ -276,29 +277,23 @@ object Zeroconf:
       DnsPacket(LocalDnsMulticastAddress, message)
     end serviceResponse
 
-    interface
-      .fold(networkInterfaces())(Stream.emit)
-      .flatMap(itf => Stream.resource(localMulticastSocket(itf)))
-      .evalMap { socket =>
-        val response =
-          if instance.addresses.isEmpty then
-            socket.localAddress
-              .map(_.toInetSocketAddress.getAddress)
-              .map(addr => serviceResponse(Seq(addr)))
-          else Sync[F].pure(serviceResponse(instance.addresses))
-        response.map(resp => (socket, resp))
+    val servers = for
+      itf <- interface.map(Stream.emit).getOrElse(networkInterfaces())
+      addresses <- Stream.eval {
+        if instance.addresses.nonEmpty then Sync[F].pure(instance.addresses) // TODO filter if non reachable on itf ?
+        else Sync[F].delay(itf.inetAddresses().filter(_.isSiteLocalAddress()).toScala(List))
       }
-      .map { case (socket, response) =>
-        Dns
-          .listen(socket)
-          .map(_.message)
-          .filter(isServiceRequest)
-          .filterNot(knowsInstance)
-          .map(_ => response)
-          .through(Dns.stream(socket))
-          .unitary
-      }
-      .parJoinUnbounded
+      socket <- Stream.resource(localMulticastSocket(itf))
+    yield Dns
+      .listen(socket)
+      .map(_.message)
+      .filter(isServiceRequest)
+      .filterNot(knowsInstance)
+      .map(_ => serviceResponse(addresses))
+      .through(Dns.stream(socket))
+      .unitary
+
+    servers.parJoinUnbounded
   end register
 
 end Zeroconf
