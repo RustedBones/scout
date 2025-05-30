@@ -7,25 +7,25 @@ val username = "RustedBones"
 val repo     = "scout"
 
 // for sbt-github-actions
-ThisBuild / scalaVersion := "3.2.1"
+ThisBuild / scalaVersion        := "3.2.1"
 ThisBuild / githubWorkflowBuild := Seq(
   WorkflowStep.Sbt(name = Some("Check project"), commands = List("scalafmtCheckAll", "headerCheckAll")),
   WorkflowStep.Sbt(name = Some("Build project"), commands = List("test", "IntegrationTest/test"))
 )
-ThisBuild / githubWorkflowTargetBranches := Seq("main")
+ThisBuild / githubWorkflowTargetBranches        := Seq("main")
 ThisBuild / githubWorkflowPublishTargetBranches := Seq.empty
 
 lazy val commonSettings = Defaults.itSettings ++
   headerSettings(Configurations.IntegrationTest) ++
   inConfig(IntegrationTest)(ScalafmtPlugin.scalafmtConfigSettings) ++
   Seq(
-    organization := "fr.davit",
+    organization     := "fr.davit",
     organizationName := "Michel Davit",
-    scalaVersion := (ThisBuild / scalaVersion).value,
-    homepage := Some(url(s"https://github.com/$username/$repo")),
+    scalaVersion     := (ThisBuild / scalaVersion).value,
+    homepage         := Some(url(s"https://github.com/$username/$repo")),
     licenses += ("Apache-2.0", new URL("https://www.apache.org/licenses/LICENSE-2.0.txt")),
-    startYear := Some(2020),
-    scmInfo := Some(ScmInfo(url(s"https://github.com/$username/$repo"), s"git@github.com:$username/$repo.git")),
+    startYear  := Some(2020),
+    scmInfo    := Some(ScmInfo(url(s"https://github.com/$username/$repo"), s"git@github.com:$username/$repo.git")),
     developers := List(
       Developer(
         id = s"$username",
@@ -34,9 +34,9 @@ lazy val commonSettings = Defaults.itSettings ++
         url = url(s"https://github.com/$username")
       )
     ),
-    publishMavenStyle := true,
+    publishMavenStyle      := true,
     Test / publishArtifact := false,
-    publishTo := {
+    publishTo              := {
       val resolver = if (isSnapshot.value) {
         Opts.resolver.sonatypeSnapshots: @nowarn("cat=deprecation")
       } else {
