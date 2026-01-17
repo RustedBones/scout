@@ -205,7 +205,7 @@ object Zeroconf:
   ): Stream[F, Unit] =
 
     def isServiceRequest(message: DnsMessage): Boolean =
-      val isQuery = message.header.`type` == DnsType.Query
+      val isQuery           = message.header.`type` == DnsType.Query
       val isServiceQuestion = message.questions.exists { q =>
         q.name == instance.service.show &&
         q.`type` == DnsRecordType.PTR &&
@@ -263,7 +263,7 @@ object Zeroconf:
 
       val answers     = List(ptr)
       val additionals = List(srv, txt) ++ as
-      val header = DnsHeader(
+      val header      = DnsHeader(
         id = 0,
         `type` = DnsType.Response,
         opCode = DnsOpCode.StandardQuery,
@@ -278,7 +278,7 @@ object Zeroconf:
     end serviceResponse
 
     val servers = for
-      itf <- interface.map(Stream.emit).getOrElse(networkInterfaces())
+      itf       <- interface.map(Stream.emit).getOrElse(networkInterfaces())
       addresses <- Stream.eval {
         if instance.addresses.nonEmpty then Sync[F].pure(instance.addresses) // TODO filter if non reachable on itf ?
         else Sync[F].delay(itf.inetAddresses().filter(_.isSiteLocalAddress()).toScala(List))
